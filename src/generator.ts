@@ -13,17 +13,19 @@ function Module(moduleName: string, schema: IProtocol): string {
 
 	let s = '';
 	s += line("/*---------------------------------------------------------------------------------------------");
-	s += line(" *  Copyright (c) Microsoft Corporation. All rights reserved.");
+	s += line(" *  Copyright (c) Microsoft Corporation (and Jonah). All rights reserved.");
 	s += line(" *  Licensed under the MIT License. See License.txt in the project root for license information.");
 	s += line(" *--------------------------------------------------------------------------------------------*/");
 	s += line();
-	s += line("'use strict';");
+	s += line("package org.eclipse.dsp4j;")
+	s += line();
+	s += line("import java.util.Map;")
 	s += line();
 
 	//s += comment(schema.description);
 	s += comment('Declaration module describing the VS Code debug protocol.\nAuto-generated from json schema. Do not edit manually.');
 
-	s += openBlock(`export module ${moduleName}`);
+	s += openBlock(`public class ${moduleName}`);
 
 	for (let typeName in schema.definitions) {
 
@@ -60,7 +62,7 @@ function Interface(interfaceName: string, definition: P.Definition, superType?: 
 
 	s += comment(definition.description);
 
-	let x = `export interface ${interfaceName}`;
+	let x = `public static class ${interfaceName}`;
 	if (superType) {
 		x += ` extends ${superType}`;
 	}
@@ -79,8 +81,8 @@ function Interface(interfaceName: string, definition: P.Definition, superType?: 
 function Enum(typeName: string, definition: P.StringType): string {
 	let s = line();
 	s += comment(definition.description, definition.enum, definition.enumDescriptions);
-	const x = definition.enum.map(v => `'${v}'`).join(' | ');
-	s += line(`export type ${typeName} = ${x};`);
+	const x = definition.enum.map(v => v === 'interface' ? 'interface_' : v).map(v => v === 'class' ? 'class_' : v).map(v => v === 'enum' ? 'enum_' : v).join(', ');
+	s += line(`enum ${typeName} { ${x} }`);
 	return s;
 }
 
@@ -130,17 +132,22 @@ function propertyType(prop: any): string {
 			return objectType(prop);
 		case 'string':
 			if (prop.enum) {
-				return prop.enum.map(v => `'${v}'`).join(' | ');
+				let s = '/* one of ' + prop.enum.map(v => `'${v}'`).join(' | ') + '*/ String';
+				if (prop.enum.length === 1) {
+					s += ` = "${prop.enum}"`;
+				}
 			}
-			return `string`;
+			return `String`;
 		case 'integer':
-			return 'number';
+			return 'int';
+		case 'number':
+			return 'int';
 	}
 	if (Array.isArray(prop.type)) {
 		if (prop.type.length === 7 && prop.type.sort().join() === 'array,boolean,integer,null,number,object,string') {	// silly way to detect all possible json schema types
-			return 'any';
+			return 'Object';
 		} else {
-			return prop.type.map(v => v === 'integer' ? 'number' : v).join(' | ');
+			return '/* type one of ' + prop.type.join(' | ') + ' */ Object';
 		}
 	}
 	return prop.type;
@@ -148,18 +155,18 @@ function propertyType(prop: any): string {
 
 function objectType(prop: any): string {
 	if (prop.properties) {
-		let s = openBlock('', '{', false);
+		let s = openBlock('static class Body ', '{', false);
 
 		for (let propName in prop.properties) {
 			const required = prop.required ? prop.required.indexOf(propName) >= 0 : false;
 			s += property(propName, !required, prop.properties[propName]);
 		}
 
-		s += closeBlock('}', false);
+		s += closeBlock('}; public Body', false);
 		return s;
 	}
 	if (prop.additionalProperties) {
-		return `{ [key: string]: ${prop.additionalProperties.type}; }`;
+		return 'Map<String, String>';
 	}
 	return '{}';
 }
@@ -168,7 +175,10 @@ function property(name: string, optional: boolean, prop: P.PropertyType): string
 	let s = '';
 	s += comment(prop.description, (<P.StringType>prop).enum, (<P.StringType>prop).enumDescriptions);
 	const type = propertyType(prop);
-	const propertyDef = `${name}${optional ? '?' : ''}: ${type}`;
+	if (name === 'default') {
+		name = 'default_';
+	}
+	const propertyDef = `public ${type} ${name}`;
 	if (type[0] === '\'' && type[type.length-1] === '\'' && type.indexOf('|') < 0) {
 		s += line(`// ${propertyDef};`);
 	} else {
@@ -214,4 +224,4 @@ const debugProtocolSchema = JSON.parse(fs.readFileSync('./debugProtocol.json').t
 
 const emitStr = Module('DebugProtocol', debugProtocolSchema);
 
-fs.writeFileSync(`./protocol/src/debugProtocol.ts`, emitStr, 'utf-8');
+fs.writeFileSync(`./protocol/src/DebugProtocol.java`, emitStr, 'utf-8');
