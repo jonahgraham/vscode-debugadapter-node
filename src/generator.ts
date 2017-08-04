@@ -70,17 +70,39 @@ function Interface(interfaceName: string, definition: P.Definition, superType?: 
 
 	for (let propName in definition.properties) {
 		const required = definition.required ? definition.required.indexOf(propName) >= 0 : false;
-		s += property(propName, !required, definition.properties[propName]);
+		s += property(interfaceName, propName, !required, definition.properties[propName]);
 	}
+
+	s += ToString(interfaceName, definition.properties)
 
 	s += closeBlock();
 
 	return s;
 }
 
+function ToString(interfaceName : string, properties: { [key: string]: P.PropertyType; }) : string {
+	let s = "";
+	s += line("@Override");
+	s += openBlock("public String toString()");
+	s += openBlock(`return "${interfaceName}`, ` ["`)
+	let comma = "";
+	for (let propName in properties) {
+		if (propName === 'default') {
+			// TODO deal with this misnamed property
+			propName = 'default_';
+		}
+		s += line(`+ "${comma}${propName}=" + ${propName}`)
+		comma = ', '
+	}
+	s += closeBlock(` + "]";`)
+	s += closeBlock();
+	return s;
+}
+
 function Enum(typeName: string, definition: P.StringType): string {
 	let s = line();
 	s += comment(definition.description, definition.enum, definition.enumDescriptions);
+	// TODO deal with these misnamed enums
 	const x = definition.enum.map(v => v === 'interface' ? 'interface_' : v).map(v => v === 'class' ? 'class_' : v).map(v => v === 'enum' ? 'enum_' : v).join(', ');
 	s += line(`enum ${typeName} { ${x} }`);
 	return s;
@@ -139,9 +161,11 @@ function propertyType(prop: any): string {
 			}
 			return `String`;
 		case 'integer':
-			return 'int';
+			return 'Integer';
 		case 'number':
-			return 'int';
+			return 'Integer';
+		case 'boolean':
+			return 'Boolean';
 	}
 	if (Array.isArray(prop.type)) {
 		if (prop.type.length === 7 && prop.type.sort().join() === 'array,boolean,integer,null,number,object,string') {	// silly way to detect all possible json schema types
@@ -159,10 +183,14 @@ function objectType(prop: any): string {
 
 		for (let propName in prop.properties) {
 			const required = prop.required ? prop.required.indexOf(propName) >= 0 : false;
-			s += property(propName, !required, prop.properties[propName]);
+			s += property('Body', propName, !required, prop.properties[propName]);
 		}
 
-		s += closeBlock('}; public Body', false);
+		s += ToString("Body", prop.properties);
+
+		s += closeBlock('};', true);
+		s += line();
+		s += line('public Body', false);
 		return s;
 	}
 	if (prop.additionalProperties) {
@@ -171,11 +199,12 @@ function objectType(prop: any): string {
 	return '{}';
 }
 
-function property(name: string, optional: boolean, prop: P.PropertyType): string {
+function property(enclosingType: string, name: string, optional: boolean, prop: P.PropertyType): string {
 	let s = '';
 	s += comment(prop.description, (<P.StringType>prop).enum, (<P.StringType>prop).enumDescriptions);
 	const type = propertyType(prop);
 	if (name === 'default') {
+		// TODO deal with this misnamed property
 		name = 'default_';
 	}
 	const propertyDef = `public ${type} ${name}`;
@@ -184,6 +213,18 @@ function property(name: string, optional: boolean, prop: P.PropertyType): string
 	} else {
 		s += line(`${propertyDef};`);
 	}
+
+	let nameUpper = name.charAt(0).toUpperCase() + name.slice(1);
+	let actualType = type;
+	if (actualType.includes("Body")) {
+		actualType = "Body";
+	}
+	s += openBlock(`public ${enclosingType} set${nameUpper}(${actualType} ${name})`)
+	s += line(`this.${name} = ${name};`)
+	s += line(`return this;`)
+	s += closeBlock()
+	s += line();
+
 	return s;
 }
 
