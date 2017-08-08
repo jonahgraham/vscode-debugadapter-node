@@ -91,7 +91,11 @@ function ToString(interfaceName : string, properties: { [key: string]: P.Propert
 			// TODO deal with this misnamed property
 			propName = 'default_';
 		}
-		s += line(`+ "${comma}${propName}=" + ${propName}`)
+		if (properties[propName].type == 'array') {
+			s += line(`+ "${comma}${propName}=" + Arrays.toString(${propName})`)
+		} else {
+			s += line(`+ "${comma}${propName}=" + ${propName}`)
+		}
 		comma = ', '
 	}
 	s += closeBlock(` + "]";`)
