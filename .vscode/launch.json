@@ -4,10 +4,12 @@
 		{
 			"type": "node",
 			"request": "launch",
-			"protocol": "legacy",
 			"name": "Generate debugProtocol.ts",
 			"program": "${workspaceRoot}/src/generator.ts",
-			"outFiles": [ "${workspaceRoot}/out/**/*.js" ]
+			"outFiles": [ "${workspaceRoot}/out/**/*.js" ],
+			"args": [
+				"../lsp4j/org.eclipse.lsp4j.debug/src/main/java"
+			]
 		}
 	]
 }

@@ -19,8 +19,7 @@
 	"bugs": {
 		"url": "https://github.com/Microsoft/vscode-debugadapter-node/issues"
 	},
-	"dependencies": {
-	},
+	"dependencies": {},
 	"devDependencies": {
 		"@types/node": "^6.0.39",
 		"typescript": "^2.0.2"
