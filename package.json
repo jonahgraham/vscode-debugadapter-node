@@ -26,7 +26,8 @@
 	},
 	"scripts": {
 		"compile": "tsc -p ./src",
-		"watch": "tsc -w -p ./src"
+		"watch": "tsc -w -p ./src",
+		"generate": "node out/xtext_generator.js"
 	},
 	"main": "./out/generator"
 }

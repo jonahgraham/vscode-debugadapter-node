@@ -5,7 +5,7 @@
 			"type": "node",
 			"request": "launch",
 			"name": "Generate debugProtocol.ts",
-			"program": "${workspaceRoot}/src/generator.ts",
+			"program": "${workspaceRoot}/src/xtext_generator.ts",
 			"outFiles": [ "${workspaceRoot}/out/**/*.js" ],
 			"args": [
 				"../lsp4j/org.eclipse.lsp4j.debug/src/main/java"
