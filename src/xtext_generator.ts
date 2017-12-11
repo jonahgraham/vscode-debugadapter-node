@@ -151,11 +151,15 @@ function RequestInterface(interfaceName: string, request: P.Definition, response
 	let returnTypeName = 'Void'
 	if (response.properties && response.properties.body) {
 		let responseBody = response.properties.body;
-		protocol += line();
-		protocol += comment({ description : response.description });
 		returnTypeName = `${interfaceName.replace(/Request/, 'Response')}`
-		let x = `@JsonRpcData\nclass ${returnTypeName}`;
-		protocol += ProtocolBody(returnTypeName, x, <P.Definition>responseBody)
+		let [resolvedTypeName, unused] = propertyType(responseBody, returnTypeName);
+		if (resolvedTypeName === returnTypeName) {
+			protocol += line();
+			protocol += comment({ description : response.description });
+				let x = `@JsonRpcData\nclass ${resolvedTypeName}`;
+			protocol += ProtocolBody(returnTypeName, x, <P.Definition>responseBody)
+		}
+		returnTypeName = resolvedTypeName;
 	}
 
 	let argsTypeName = undefined;
@@ -370,7 +374,7 @@ function propertyType(prop: any, name?: string): string[] {
 			const [t, extra] = propertyType(prop.items, name);
 			return [`${t}[]`, extra];
 		case 'object':
-			return [objectType(prop), ''];
+			return [objectType(prop, name), ''];
 		case 'string':
 			if (prop.enum) {
 				return [name, ClosedEnum(name, prop)];
@@ -426,18 +430,9 @@ function propertyType(prop: any, name?: string): string[] {
 	return [prop.type, ''];
 }
 
-function objectType(prop: any): string {
+function objectType(prop: any, name?: string): string {
 	if (prop.properties) {
-		throw new Error("TODO 2: This code was not called when generator was written")
-		// let s = openBlock('', '{');
-
-		// for (let propName in prop.properties) {
-		// 	const required = prop.required ? prop.required.indexOf(propName) >= 0 : false;
-		// 	s += property(enclosing type, propName, !required, prop.properties[propName]);
-		// }
-
-		// s += closeBlock('}', false);
-		// return s;
+		return name;
 	}
 	if (prop.additionalProperties) {
 		return 'Map<String, String>';
