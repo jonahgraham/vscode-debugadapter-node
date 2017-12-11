@@ -33,6 +33,7 @@ function Module(schema: IProtocol, version: string): string[] {
 	protocol += line("import java.util.Map");
 	protocol += line("import org.eclipse.lsp4j.generator.JsonRpcData");
 	protocol += line("import org.eclipse.lsp4j.jsonrpc.messages.Either");
+	protocol += line("import org.eclipse.lsp4j.jsonrpc.validation.NonNull");
 	protocol += line();
 	protocol += comment({ description : `Declaration of parameters, response bodies, and event bodies.\nAuto-generated from debugProtocol.json schema version ${version}. Do not edit manually.`});
 
@@ -452,6 +453,9 @@ function property(enclosingType: string, name: string, optional: boolean, prop: 
 	let javaSafeName = JavaSafe(name);
 	if (javaSafeName != name) {
 		s += line(`@SerializedName(value = "${name}")`)
+	}
+	if (!optional) {
+		s += line(`@NonNull`);
 	}
 	let declPublic = '';
 	if (!isProtocol) {
