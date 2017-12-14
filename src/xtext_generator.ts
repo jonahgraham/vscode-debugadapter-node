@@ -168,8 +168,8 @@ function RequestInterface(interfaceName: string, request: P.Definition, response
 		argsTypeName = propertyType(request.properties.arguments)[0];
 	}
 	// Some special cases that the schema does not show
-	if (argsTypeName === 'LaunchRequestArguments') {
-		// Launch request arguments can actually be any of the arbitrary json
+	if (argsTypeName === 'LaunchRequestArguments' || argsTypeName === 'AttachRequestArguments') {
+		// Launch/attach request arguments can actually be any of the arbitrary json
 		// that is in launch.json file.
 		argsTypeName = 'Map<String, Object>';
 	}
