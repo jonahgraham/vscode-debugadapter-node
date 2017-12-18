@@ -385,12 +385,9 @@ function propertyType(prop: any, name?: string): string[] {
 			}
 			return [`String`, ''];
 		case 'integer':
+			return ['Long', ''];
 		case 'number':
-			// TODO: technically the schema says any kind of number is allowed here,
-			// in practice AFAICT this is really an integer all the time
-			// the schema also does not put a range on these numbers/integers so
-			// presumably the range of int is sufficient
-			return ['Integer', ''];
+			return ['Long', ''];
 		case 'boolean':
 			return ['Boolean', ''];
 	}
@@ -404,8 +401,9 @@ function propertyType(prop: any, name?: string): string[] {
 				case 'boolean':
 					return 'Boolean';
 				case 'integer':
+					return 'Long';
 				case 'number':
-					return 'Integer';
+					return 'Long';
 				case 'string':
 					return 'String';
 			}
