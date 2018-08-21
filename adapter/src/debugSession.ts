@@ -7,8 +7,7 @@ import {DebugProtocol} from 'vscode-debugprotocol';
 import {ProtocolServer} from './protocol';
 import {Response, Event} from './messages';
 import * as Net from 'net';
-import * as Path from 'path';
-import * as Url from 'url';
+import {URL} from 'url';
 
 
 export class Source implements DebugProtocol.Source {
@@ -263,6 +262,19 @@ export class LoadedSourceEvent extends Event implements DebugProtocol.LoadedSour
 	}
 }
 
+export class CapabilitiesEvent extends Event implements DebugProtocol.CapabilitiesEvent {
+	body: {
+		capabilities: DebugProtocol.Capabilities
+	};
+
+	public constructor(capabilities: DebugProtocol.Capabilities) {
+		super('capabilities');
+		this.body = {
+			capabilities: capabilities
+		};
+	}
+}
+
 export enum ErrorDestination {
 	User = 1,
 	Telemetry = 2
@@ -359,7 +371,7 @@ export class DebugSession extends ProtocolServer {
 
 	public shutdown(): void {
 		if (this._isServer) {
-			console.error('shutdown ignored in server mode');
+			// shutdown ignored in server mode
 		} else {
 			// wait a bit before shutting down
 			setTimeout(() => {
@@ -435,6 +447,9 @@ export class DebugSession extends ProtocolServer {
 			} else if (request.command === 'disconnect') {
 				this.disconnectRequest(<DebugProtocol.DisconnectResponse> response, request.arguments);
 
+			} else if (request.command === 'terminate') {
+				this.terminateRequest(<DebugProtocol.TerminateResponse> response, request.arguments);
+
 			} else if (request.command === 'restart') {
 				this.restartRequest(<DebugProtocol.RestartResponse> response, request.arguments);
 
@@ -489,11 +504,17 @@ export class DebugSession extends ProtocolServer {
 			} else if (request.command === 'setVariable') {
 				this.setVariableRequest(<DebugProtocol.SetVariableResponse> response, request.arguments);
 
+			} else if (request.command === 'setExpression') {
+				this.setExpressionRequest(<DebugProtocol.SetExpressionResponse> response, request.arguments);
+
 			} else if (request.command === 'source') {
 				this.sourceRequest(<DebugProtocol.SourceResponse> response, request.arguments);
 
 			} else if (request.command === 'threads') {
 				this.threadsRequest(<DebugProtocol.ThreadsResponse> response);
+
+			} else if (request.command === 'terminateThreads') {
+				this.terminateThreadsRequest(<DebugProtocol.TerminateThreadsResponse> response, request.arguments);
 
 			} else if (request.command === 'evaluate') {
 				this.evaluateRequest(<DebugProtocol.EvaluateResponse> response, request.arguments);
@@ -547,25 +568,25 @@ export class DebugSession extends ProtocolServer {
 		// This default debug adapter does not support the 'restartFrame' request.
 		response.body.supportsRestartFrame = false;
 
-		// This default debug adapter does not support the 'stepInTargetsRequest' request.
+		// This default debug adapter does not support the 'stepInTargets' request.
 		response.body.supportsStepInTargetsRequest = false;
 
-		// This default debug adapter does not support the 'gotoTargetsRequest' request.
+		// This default debug adapter does not support the 'gotoTargets' request.
 		response.body.supportsGotoTargetsRequest = false;
 
-		// This default debug adapter does not support the 'completionsRequest' request.
+		// This default debug adapter does not support the 'completions' request.
 		response.body.supportsCompletionsRequest = false;
 
 		// This default debug adapter does not support the 'restart' request.
 		response.body.supportsRestartRequest = false;
 
-		// This default debug adapter does not support the 'exceptionOptions' attribute on the 'setExceptionBreakpointsRequest'.
+		// This default debug adapter does not support the 'exceptionOptions' attribute on the 'setExceptionBreakpoints' request.
 		response.body.supportsExceptionOptions = false;
 
-		// This default debug adapter does not support the 'format' attribute on the 'variablesRequest', 'evaluateRequest', and 'stackTraceRequest'.
+		// This default debug adapter does not support the 'format' attribute on the 'variables', 'evaluate', and 'stackTrace' request.
 		response.body.supportsValueFormattingOptions = false;
 
-		// This debug adapter does not support the 'exceptionInfoRequest' request.
+		// This debug adapter does not support the 'exceptionInfo' request.
 		response.body.supportsExceptionInfoRequest = false;
 
 		// This debug adapter does not support the 'TerminateDebuggee' attribute on the 'disconnect' request.
@@ -573,6 +594,21 @@ export class DebugSession extends ProtocolServer {
 
 		// This debug adapter does not support delayed loading of stack frames.
 		response.body.supportsDelayedStackTraceLoading = false;
+
+		// This debug adapter does not support the 'loadedSources' request.
+		response.body.supportsLoadedSourcesRequest = false;
+
+		// This debug adapter does not support the 'logMessage' attribute of the SourceBreakpoint.
+		response.body.supportsLogPoints = false;
+
+		// This debug adapter does not support the 'terminateThreads' request.
+		response.body.supportsTerminateThreadsRequest = false;
+
+		// This debug adapter does not support the 'setExpression' request.
+		response.body.supportsSetExpression = false;
+
+		// This debug adapter does not support the 'terminate' request.
+		response.body.supportsTerminateRequest = false;
 
 		this.sendResponse(response);
 	}
@@ -587,6 +623,10 @@ export class DebugSession extends ProtocolServer {
 	}
 
 	protected attachRequest(response: DebugProtocol.AttachResponse, args: DebugProtocol.AttachRequestArguments): void {
+		this.sendResponse(response);
+	}
+
+	protected terminateRequest(response: DebugProtocol.TerminateResponse, args: DebugProtocol.TerminateArguments): void {
 		this.sendResponse(response);
 	}
 
@@ -654,6 +694,10 @@ export class DebugSession extends ProtocolServer {
 		this.sendResponse(response);
 	}
 
+	protected terminateThreadsRequest(response: DebugProtocol.TerminateThreadsResponse, args: DebugProtocol.TerminateThreadsRequest): void {
+		this.sendResponse(response);
+	}
+
 	protected stackTraceRequest(response: DebugProtocol.StackTraceResponse, args: DebugProtocol.StackTraceArguments): void {
 		this.sendResponse(response);
 	}
@@ -667,6 +711,10 @@ export class DebugSession extends ProtocolServer {
 	}
 
 	protected setVariableRequest(response: DebugProtocol.SetVariableResponse, args: DebugProtocol.SetVariableArguments): void {
+		this.sendResponse(response);
+	}
+
+	protected setExpressionRequest(response: DebugProtocol.SetExpressionResponse, args: DebugProtocol.SetExpressionArguments): void {
 		this.sendResponse(response);
 	}
 
@@ -732,7 +780,7 @@ export class DebugSession extends ProtocolServer {
 	}
 
 	protected convertClientPathToDebugger(clientPath: string): string {
-		if (this._clientPathsAreURIs != this._debuggerPathsAreURIs) {
+		if (this._clientPathsAreURIs !== this._debuggerPathsAreURIs) {
 			if (this._clientPathsAreURIs) {
 				return DebugSession.uri2path(clientPath);
 			} else {
@@ -743,7 +791,7 @@ export class DebugSession extends ProtocolServer {
 	}
 
 	protected convertDebuggerPathToClient(debuggerPath: string): string {
-		if (this._debuggerPathsAreURIs != this._clientPathsAreURIs) {
+		if (this._debuggerPathsAreURIs !== this._clientPathsAreURIs) {
 			if (this._debuggerPathsAreURIs) {
 				return DebugSession.uri2path(debuggerPath);
 			} else {
@@ -755,16 +803,32 @@ export class DebugSession extends ProtocolServer {
 
 	//---- private -------------------------------------------------------------------------------
 
-	private static path2uri(str: string): string {
-		var pathName = str.replace(/\\/g, '/');
-		if (pathName[0] !== '/') {
-			pathName = '/' + pathName;
+	private static path2uri(path: string): string {
+
+		if (process.platform === 'win32') {
+			if (/^[A-Z]:/.test(path)) {
+				path = path[0].toLowerCase() + path.substr(1);
+			}
+			path = path.replace(/\\/g, '/');
 		}
-		return encodeURI('file://' + pathName);
+		path = encodeURI(path);
+
+		let uri = new URL(`file:`);	// ignore 'path' for now
+		uri.pathname = path;	// now use 'path' to get the correct percent encoding (see https://url.spec.whatwg.org)
+		return uri.toString();
 	}
 
-	private static uri2path(url: string): string {
-		return Url.parse(url).pathname;
+	private static uri2path(sourceUri: string): string {
+
+		let uri = new URL(sourceUri);
+		let s = decodeURIComponent(uri.pathname);
+		if (process.platform === 'win32') {
+			if (/^\/[a-zA-Z]:/.test(s)) {
+				s = s[1].toLowerCase() + s.substr(2);
+			}
+			s = s.replace(/\//g, '\\');
+		}
+		return s;
 	}
 
 	private static _formatPIIRegexp = /{([^}]+)}/g;
