@@ -9,15 +9,18 @@ import {IProtocol, Protocol as P} from './json_schema';
 
 var hashCodeCounter = 1;
 function Module(schema: IProtocol, version: string): string[] {
-
 	let header = '';
-	header += line('/*******************************************************************************');
-	header += line(' * Copyright (c) 2017 Kichwa Coders Ltd. and others.');
-	header += line(' * All rights reserved. This program and the accompanying materials');
-	header += line(' * are made available under the terms of the Eclipse Public License v1.0');
-	header += line(' * which accompanies this distribution, and is available at');
-	header += line(' * http://www.eclipse.org/legal/epl-v10.html');
-	header += line(' *******************************************************************************/');
+	header += line('/******************************************************************************');
+	header += line(' * Copyright (c) 2017, 2020 Kichwa Coders Ltd. and others.');
+	header += line(' *');
+	header += line(' * This program and the accompanying materials are made available under the');
+	header += line(' * terms of the Eclipse Public License v. 2.0 which is available at');
+	header += line(' * http://www.eclipse.org/legal/epl-2.0,');
+	header += line(' * or the Eclipse Distribution License v. 1.0 which is available at');
+	header += line(' * http://www.eclipse.org/org/documents/edl-v10.php.');
+	header += line(' *');
+	header += line(' * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause');
+	header += line(' ******************************************************************************/');
 	header += line();
 
 	// We use Organize Includes in Eclipse to sort and import everything we need, we just
@@ -116,6 +119,7 @@ function JavaSafe(str: string): string {
 function CamelCaseToUpperCase(str: string): (string | boolean)[] {
 	if (/[a-z]/.test(str)) {
 		let result = str.replace( /([A-Z])/g, "_$1" ).toUpperCase();
+		result = result.replace( / /g, "_" );
 		// XXX: Special case some values rather than write a complete converter
 		if (result.indexOf('U_T_C') > -1) {
 			result = result.replace('U_T_C', 'UTC');
@@ -183,11 +187,11 @@ function RequestInterface(interfaceName: string, request: P.Definition, response
 	} else {
 		server += line(`@JsonRequest`)
 	}
-	server += `CompletableFuture<${returnTypeName}> ${javaSafeName}`;
+	server += `default CompletableFuture<${returnTypeName}> ${javaSafeName}`;
 	if (argsTypeName) {
-		server += `(${argsTypeName} args);`;
+		server += `(${argsTypeName} args) { throw new UnsupportedOperationException(); }`;
 	} else {
-		server += `();`;
+		server += `() { throw new UnsupportedOperationException(); }`;
 	}
 
 	return [protocol, server];
@@ -215,11 +219,11 @@ function EventInterface(interfaceName: string, definition: P.Definition): string
 	} else {
 		client += line(`@JsonNotification`)
 	}
-	client += `void ${javaSafeName}`;
+	client += `default void ${javaSafeName}`;
 	if (paramType) {
-		client += `(${paramType} args);`;
+		client += `(${paramType} args){}`;
 	} else {
-		client += `();`;
+		client += `(){}`;
 	}
 
 	return [protocol, client];
@@ -243,7 +247,7 @@ function ProtocolInterface(interfaceName: string, definition: P.Definition, supe
 function ClosedEnum(typeName: string, definition: P.StringType): string {
 	let s = line();
 	s += comment(definition);
-	s += line(`public enum ${typeName} {`);
+	s += line(`enum ${typeName} {`);
 	for (let i = 0; i < definition.enum.length; i++) {
 		if (i != 0) {
 			s += `,\n`;
@@ -266,7 +270,7 @@ function ClosedEnum(typeName: string, definition: P.StringType): string {
 function OpenEnum(typeName: string, definition: P.StringType): string {
 	let s = line();
 	s += comment(definition, false, typeName);
-	s += line(`public interface ${typeName} {`);
+	s += line(`interface ${typeName} {`);
 	for (let i = 0; i < definition._enum.length; i++) {
 		let desc = ''
 		if (definition.enumDescriptions) {
@@ -366,67 +370,79 @@ function closeBlock(closeChar?: string, newline?: boolean): string {
 	return line(closeChar, newline);
 }
 
-function propertyType(prop: any, name?: string): string[] {
+function propertyType(prop: any, name?: string, optional?: boolean): string[] {
+	let nonnull = optional ? '' : line('@NonNull');
 	if (prop.$ref) {
-		return [getRef(prop.$ref), ''];
+		return [getRef(prop.$ref), '', nonnull];
 	}
 	switch (prop.type) {
 		case 'array':
 			const [t, extra] = propertyType(prop.items, name);
-			return [`${t}[]`, extra];
+			return [`${t}[]`, extra, nonnull];
 		case 'object':
-			return [objectType(prop, name), ''];
+			return [objectType(prop, name), '', nonnull];
 		case 'string':
 			if (prop.enum) {
-				return [name, ClosedEnum(name, prop)];
+				return [name, ClosedEnum(name, prop), nonnull];
 			}
 			if (prop._enum) {
-				return ['String', OpenEnum(name, prop)];
+				return ['String', OpenEnum(name, prop), nonnull];
 			}
-			return [`String`, ''];
+			return [`String`, '', nonnull];
 		case 'integer':
-			return ['Long', ''];
 		case 'number':
-			return ['Long', ''];
+				if (optional) {
+				return ['Integer', '', nonnull];
+			} else {
+				return ['int', '', ''];
+			}
 		case 'boolean':
-			return ['Boolean', ''];
+			if (optional) {
+				return ['Boolean', '', nonnull];
+			} else {
+				return ['boolean', '', ''];
+			}
 	}
 	if (Array.isArray(prop.type)) {
 		function eitherType(v: string) {
 			switch (v) {
 				case 'array':
 				case 'object':
-				case 'null':
-					return 'Object';
 				case 'boolean':
 					return 'Boolean';
 				case 'integer':
-					return 'Long';
 				case 'number':
-					return 'Long';
+					return 'Integer';
 				case 'string':
 					return 'String';
+				case 'null':
+					return 'null';
 			}
 		}
 		let types = prop.type.map(v => eitherType(v));
+		if (types.indexOf('null') > -1) {
+			// Despite possibly being declared required, is actually possible to be null
+			nonnull = '';
+		}
+		types = types.filter((v, i, a) => v !== 'null')
 		types = types.filter((v, i, a) => a.indexOf(v) === i);
 		if (types.indexOf('Object') > -1) {
-			return ['Object', ''];
+			return ['Object', '', nonnull];
 		}
 		switch (types.length) {
 			case 0:
 				throw new Error("Unexpected 0 entries");
 			case 1:
-				return [types[0], ''];
+				return [types[0], '', nonnull];
 			case 2:
-				return [`Either<${types[0]},${types[1]}>`, ''];
+				return [`Either<${types[0]},${types[1]}>`, '', nonnull];
 			case 3:
-				return [`Either3<${types[0]},${types[1]},${types[2]}>`, ''];
+				return ['Object', '', nonnull];
 			default:
 				throw new Error(`Need a new Either for ${types.length} types`);
 		}
 	}
-	return [prop.type, ''];
+	return [prop.type, '', nonnull];
 }
 
 function objectType(prop: any, name?: string): string {
@@ -446,15 +462,13 @@ function capatilize(str: string): string {
 function property(enclosingType: string, name: string, optional: boolean, prop: P.PropertyType, isProtocol: boolean): string[] {
 	let s = '';
 	let enumName = enclosingType + capatilize(name);
-	const [type, extra] = propertyType(prop, enumName);
+	const [type, extra, nonnull] = propertyType(prop, enumName, optional);
 	s += comment(prop, optional, enumName);
 	let javaSafeName = JavaSafe(name);
 	if (javaSafeName != name) {
 		s += line(`@SerializedName(value = "${name}")`)
 	}
-	if (!optional) {
-		s += line(`@NonNull`);
-	}
+	s += nonnull;
 	let declPublic = '';
 	if (!isProtocol) {
 		declPublic = 'public '
