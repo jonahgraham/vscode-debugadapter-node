@@ -14,13 +14,15 @@
 	"bugs": {
 		"url": "https://github.com/Microsoft/vscode-debugadapter-node/issues"
 	},
+	"dependencies": {},
 	"devDependencies": {
 		"@types/node": "8.9.2",
 		"typescript": "2.6.1"
 	},
 	"scripts": {
 		"compile": "tsc -p ./src",
-		"watch": "tsc -w -p ./src"
+		"watch": "tsc -w -p ./src",
+		"generate": "node out/xtext_generator.js"
 	},
 	"main": "./out/generator"
 }
