@@ -96,6 +96,8 @@ function Module(schema: IProtocol, version: string): string[] {
 		} else {
 			if ((<P.StringType>d2).enum) {
 				protocol += ClosedEnum(typeName, <P.StringType> d2);
+			} else if ((<P.StringType>d2)._enum) {
+				protocol += OpenEnum(typeName, <P.StringType> d2);
 			} else {
 				protocol += ProtocolInterface(typeName, <P.Definition> d2);
 			}
