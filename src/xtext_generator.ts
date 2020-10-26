@@ -50,7 +50,7 @@ function Module(schema: IProtocol, version: string): string[] {
 	server += comment({ description : `Declaration of server requests.\nAuto-generated from debugProtocol.json schema version ${version}. Do not edit manually.`});
 	server += openBlock(`public interface IDebugProtocolServer`);
 
-	protocol += line(`class DebugProtcol {`)
+	protocol += line(`class DebugProtocol {`)
 	protocol += comment({ description : `Version of debugProtocol.json this class was derived from.` });
 	protocol += line(`public static final String SCHEMA_VERSION = "${version}";`);
 	protocol += line(`}`)
@@ -390,11 +390,16 @@ function propertyType(prop: any, name?: string, optional?: boolean): string[] {
 			}
 			return [`String`, '', nonnull];
 		case 'integer':
-		case 'number':
-				if (optional) {
+			if (optional) {
 				return ['Integer', '', nonnull];
 			} else {
 				return ['int', '', ''];
+			}
+		case 'number':
+			if (optional) {
+				return ['Double', '', nonnull];
+			} else {
+				return ['double', '', ''];
 			}
 		case 'boolean':
 			if (optional) {
