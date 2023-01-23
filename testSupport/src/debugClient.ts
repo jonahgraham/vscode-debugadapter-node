@@ -30,7 +30,7 @@ export class DebugClient extends ProtocolClient {
 	private static CASE_INSENSITIVE_FILESYSTEM : boolean;
 
 	private _runtime: string;
-	private _executable: string;
+	private _runtimeArgs: string[];
 	private _adapterProcess: cp.ChildProcess;
 	private _spawnOptions: cp.SpawnOptions;
 	private _enableStderr: boolean;
@@ -57,10 +57,13 @@ export class DebugClient extends ProtocolClient {
 	 *     return dc.hitBreakpoint({ program: 'test.js' }, 'test.js', 15);
 	 * });
 	 */
-	constructor(debugAdapterRuntime: string, debugAdapterExecutable: string, debugType: string, spawnOptions?: cp.SpawnOptions, enableStderr?: boolean) {
+	constructor(debugAdapterRuntime: string, debugAdapterExecutable: string, debugType: string, spawnOptions?: cp.SpawnOptions, enableStderr?: boolean, debugAdapterArgs?: string[]) {
 		super();
 		this._runtime = debugAdapterRuntime;
-		this._executable = debugAdapterExecutable;
+		this._runtimeArgs = [debugAdapterExecutable];
+		if (debugAdapterArgs) {
+			this._runtimeArgs.push(...debugAdapterArgs);
+		}
 		this._spawnOptions = spawnOptions;
 		this._enableStderr = enableStderr;
 		this._debugType = debugType;
@@ -94,7 +97,7 @@ export class DebugClient extends ProtocolClient {
 					resolve();
 				});
 			} else {
-				this._adapterProcess = cp.spawn(this._runtime, [ this._executable ], this._spawnOptions);
+				this._adapterProcess = cp.spawn(this._runtime, this._runtimeArgs, this._spawnOptions);
 				const sanitize = (s: string) => s.toString().replace(/\r?\n$/mg, '');
 				this._adapterProcess.stderr.on('data', (data: string) => {
 					if (this._enableStderr) {
